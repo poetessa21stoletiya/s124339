@@ -1,0 +1,233 @@
+import pandas as pd
+import sqlite3
+
+# Читаем Excel-файл
+df = pd.read_excel('2026-03-10 дипломчик.xlsx', sheet_name='Sheet')
+
+# Удаляем пустые/служебные колонки (с баллами)
+cols_to_drop = ['Набрано баллов', 'Всего баллов', 'Результат теста']
+df = df.drop(columns=[c for c in cols_to_drop if c in df.columns], errors='ignore')
+
+# Переименуем длинные названия для удобства
+rename_dict = {
+    'Нравится ли вам обучаться чему-то новому?': 'q1',
+    'Нравится ли вам обучаться чему-то новому, но в игровой форме?': 'q2',
+    'Как вы думаете насколько актуальна тема  геймификация образования?': 'q3',
+    'Хотели бы вы узнать основы стихосложения?': 'q4',
+    'Хотели бы вы, при изучении ритмов и рифм в школе пользоваться приложением, а не только учебниками?': 'q5',
+    'Какие функции вы бы хотели видеть в приложении / Интересный персонаж': 'func_personal',
+    'Какие функции вы бы хотели видеть в приложении / сохранение результатов': 'func_save',
+    'Какие функции вы бы хотели видеть в приложении / уведомления напоминания': 'func_notify',
+    'Какие функции вы бы хотели видеть в приложении / возможность публиковать свое творчество': 'func_publish',
+    'Какие функции вы бы хотели видеть в приложении / награды за пройденные уроки': 'func_awards',
+    'Какие функции вы бы хотели видеть в приложении / возможность создать челленджи с друзьями': 'func_challenge',
+    'Какие функции вы бы хотели видеть в приложении / визуализация пути (насколько процентов пройдено)': 'func_progress',
+    'Какие функции вы бы хотели видеть в приложении / интересный профиль': 'func_profile',
+    'свой вариант, напиши здесь пожалуйста': 'func_other',
+    'парень или девушка?': 'gender',
+    'возраст': 'age'
+}
+df = df.rename(columns=rename_dict)
+
+# Оставляем только нужные колонки (те, что есть в словаре)
+keep_cols = list(rename_dict.values()) + ['ID', 'Время создания']
+df = df[[c for c in keep_cols if c in df.columns]]
+
+# Заполним NaN пустыми строками для функций
+func_cols = ['func_personal', 'func_save', 'func_notify', 'func_publish', 'func_awards',
+             'func_challenge', 'func_progress', 'func_profile', 'func_other']
+for col in func_cols:
+    if col in df.columns:
+        df[col] = df[col].fillna('')
+
+# Сохраняем в SQLite
+conn = sqlite3.connect('survey.db')
+df.to_sql('responses', conn, if_exists='replace', index=False)
+conn.close()
+
+print("Данные успешно загружены в survey.db")
+import sqlite3
+import pandas as pd
+import plotly.express as px
+from dash import Dash, dcc, html, Input, Output, dash_table
+
+# Инициализация приложения
+app = Dash(__name__)
+
+# Функция загрузки данных из БД с фильтрами
+def load_data(gender_filter=None, age_filter=None):
+    conn = sqlite3.connect('survey.db')
+    query = "SELECT * FROM responses"
+    params = []
+    conditions = []
+    
+    if gender_filter and len(gender_filter) > 0:
+        placeholders = ','.join(['?'] * len(gender_filter))
+        conditions.append(f"gender IN ({placeholders})")
+        params.extend(gender_filter)
+    if age_filter and len(age_filter) > 0:
+        placeholders = ','.join(['?'] * len(age_filter))
+        conditions.append(f"age IN ({placeholders})")
+        params.extend(age_filter)
+    
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+    
+    df = pd.read_sql_query(query, conn, params=params)
+    conn.close()
+    return df
+
+# Получаем уникальные значения для фильтров
+def get_filter_options():
+    conn = sqlite3.connect('survey.db')
+    genders = pd.read_sql_query("SELECT DISTINCT gender FROM responses WHERE gender IS NOT NULL AND gender != ''", conn)['gender'].tolist()
+    ages = pd.read_sql_query("SELECT DISTINCT age FROM responses WHERE age IS NOT NULL AND age != ''", conn)['age'].tolist()
+    conn.close()
+    return genders, ages
+
+genders, ages = get_filter_options()
+
+# Описание макета
+app.layout = html.Div([
+    html.H1("📊 Дашборд опроса по геймификации образования", style={'text-align': 'center'}),
+    
+    html.Div([
+        html.Div([
+            html.Label("Пол:"),
+            dcc.Dropdown(
+                id='gender-filter',
+                options=[{'label': g, 'value': g} for g in genders],
+                multi=True,
+                placeholder="Все"
+            )
+        ], style={'width': '30%', 'display': 'inline-block', 'padding': '10px'}),
+        
+        html.Div([
+            html.Label("Возраст:"),
+            dcc.Dropdown(
+                id='age-filter',
+                options=[{'label': a, 'value': a} for a in ages],
+                multi=True,
+                placeholder="Все"
+            )
+        ], style={'width': '30%', 'display': 'inline-block', 'padding': '10px'})
+    ], style={'text-align': 'center'}),
+    
+    html.Div(id='stats', style={'text-align': 'center', 'fontSize': 20, 'margin': '20px'}),
+    
+    dcc.Tabs([
+        dcc.Tab(label='Общая статистика', children=[
+            html.Div([
+                dcc.Graph(id='gender-pie'),
+                dcc.Graph(id='age-bar'),
+                dcc.Graph(id='q1-bar'),
+                dcc.Graph(id='q2-bar'),
+                dcc.Graph(id='q3-bar'),
+                dcc.Graph(id='q4-bar'),
+                dcc.Graph(id='q5-bar')
+            ])
+        ]),
+        dcc.Tab(label='Функции приложения', children=[
+            html.Div([
+                dcc.Graph(id='func-bar'),
+                html.H3("Свои варианты ответов:"),
+                html.Div(id='other-responses')
+            ])
+        ]),
+        dcc.Tab(label='Таблица данных', children=[
+            dash_table.DataTable(
+                id='data-table',
+                columns=[{"name": i, "id": i} for i in ['ID', 'Время создания', 'q1', 'q2', 'q3', 'q4', 'q5', 'gender', 'age']],
+                style_table={'overflowX': 'auto'},
+                page_size=15,
+                style_cell={'textAlign': 'left'}
+            )
+        ])
+    ])
+])
+
+# Callback для обновления всех графиков и таблицы
+@app.callback(
+    [Output('stats', 'children'),
+     Output('gender-pie', 'figure'),
+     Output('age-bar', 'figure'),
+     Output('q1-bar', 'figure'),
+     Output('q2-bar', 'figure'),
+     Output('q3-bar', 'figure'),
+     Output('q4-bar', 'figure'),
+     Output('q5-bar', 'figure'),
+     Output('func-bar', 'figure'),
+     Output('other-responses', 'children'),
+     Output('data-table', 'data')],
+    [Input('gender-filter', 'value'),
+     Input('age-filter', 'value')]
+)
+def update_dashboard(selected_genders, selected_ages):
+    df = load_data(selected_genders, selected_ages)
+    
+    total = len(df)
+    stats_text = f"Всего респондентов: {total}"
+    
+    # Пол
+    if not df.empty and 'gender' in df.columns:
+        gender_counts = df['gender'].value_counts().reset_index()
+        gender_counts.columns = ['gender', 'count']
+        gender_pie = px.pie(gender_counts, values='count', names='gender', title='Распределение по полу')
+    else:
+        gender_pie = px.pie(title='Нет данных')
+    
+    # Возраст
+    if not df.empty and 'age' in df.columns:
+        age_counts = df['age'].value_counts().reset_index()
+        age_counts.columns = ['age', 'count']
+        age_bar = px.bar(age_counts, x='age', y='count', title='Распределение по возрасту')
+    else:
+        age_bar = px.bar(title='Нет данных')
+    
+    # Функции для вопросов q1-q5 (можно адаптировать под названия)
+    questions = ['q1', 'q2', 'q3', 'q4', 'q5']
+    figures = []
+    for q in questions:
+        if not df.empty and q in df.columns:
+            counts = df[q].value_counts().reset_index()
+            counts.columns = [q, 'count']
+            fig = px.bar(counts, x=q, y='count', title=f'Ответы на вопрос {q}')
+        else:
+            fig = px.bar(title='Нет данных')
+        figures.append(fig)
+    
+    # Популярность функций
+    func_cols = ['func_personal', 'func_save', 'func_notify', 'func_publish',
+                 'func_awards', 'func_challenge', 'func_progress', 'func_profile']
+    if not df.empty:
+        func_counts = {}
+        for col in func_cols:
+            if col in df.columns:
+                # Считаем количество непустых значений (выбрана функция)
+                cnt = df[col].astype(bool).sum()
+                func_counts[col.replace('func_', '')] = cnt
+        func_df = pd.DataFrame(list(func_counts.items()), columns=['Функция', 'Количество'])
+        func_df = func_df.sort_values('Количество', ascending=False)
+        func_bar = px.bar(func_df, x='Количество', y='Функция', orientation='h', title='Популярность функций')
+    else:
+        func_bar = px.bar(title='Нет данных')
+    
+    # Свои варианты
+    if not df.empty and 'func_other' in df.columns:
+        others = df[df['func_other'].astype(bool)]['func_other'].tolist()
+        other_list = html.Ul([html.Li(text) for text in others if text.strip()])
+    else:
+        other_list = html.P("Нет своих вариантов")
+    
+    # Таблица (только основные поля)
+    if not df.empty:
+        table_cols = ['ID', 'Время создания', 'q1', 'q2', 'q3', 'q4', 'q5', 'gender', 'age']
+        table_df = df[[c for c in table_cols if c in df.columns]]
+        table_data = table_df.to_dict('records')
+    else:
+        table_data = []
+    
+    return (stats_text, gender_pie, age_bar, *figures, func_bar, other_list, table_data)
+
+if __name__ == '__main__':
+    app.run_server(debug=True)
