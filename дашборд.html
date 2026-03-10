@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Дашборд: Геймификация образования</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --secondary: #ec4899;
+            --bg: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            padding: 2rem;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: transform 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-info h3 {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .stat-info .value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-top: 0.25rem;
+        }
+
+        .stat-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .icon-blue { background: #e0e7ff; color: #4f46e5; }
+        .icon-pink { background: #fce7f3; color: #db2777; }
+        .icon-green { background: #d1fae5; color: #059669; }
+        .icon-orange { background: #ffedd5; color: #ea580c; }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .chart-card {
+            background: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .chart-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        .features-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+
+        .feature-item {
+            background: #f9fafb;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border-left: 4px solid var(--primary);
+        }
+
+        .feature-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .progress-bg {
+            background: #e5e7eb;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 4px;
+            width: 0;
+            transition: width 1s ease-out;
+        }
+
+        .feature-count {
+            float: right;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            body {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Аналитика опроса: Геймификация обучения</h1>
+        <p>Результаты на основе 200 респондентов</p>
+    </header>
+
+    <!-- Key Stats -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-info">
+                <h3>Всего участников</h3>
+                <div class="value">200</div>
+            </div>
+            <div class="stat-icon icon-blue">👥</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-info">
+                <h3>Интерес к игре</h3>
+                <div class="value">85%</div>
+            </div>
+            <div class="stat-icon icon-pink">🎮</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-info">
+                <h3>Хотят приложение</h3>
+                <div class="value">90%</div>
+            </div>
+            <div class="stat-icon icon-green">📱</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-info">
+                <h3>Актуальность темы</h3>
+                <div class="value">Высокая</div>
+            </div>
+            <div class="stat-icon icon-orange">🔥</div>
+        </div>
+    </div>
+
+    <!-- Charts Row 1 -->
+    <div class="charts-grid">
+        <div class="chart-card">
+            <div class="chart-header">
+                <span class="chart-title">Портрет респондента</span>
+            </div>
+            <div class="chart-container">
+                <canvas id="demographicsChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-header">
+                <span class="chart-title">Отношение к обучению</span>
+            </div>
+            <div class="chart-container">
+                <canvas id="learningAttitudeChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 2 -->
+    <div class="charts-grid">
+        <div class="chart-card">
+            <div class="chart-header">
+                <span class="chart-title">Актуальность геймификации</span>
+            </div>
+            <div class="chart-container">
+                <canvas id="relevanceChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-header">
+                <span class="chart-title">Желание изучать стихосложение</span>
+            </div>
+            <div class="chart-container">
+                <canvas id="versificationChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Full Width: App Preference -->
+    <div class="chart-card full-width" style="margin-bottom: 2rem;">
+        <div class="chart-header">
+            <span class="chart-title">Формат обучения: Приложение vs Учебники</span>
+        </div>
+        <div class="chart-container" style="height: 250px;">
+            <canvas id="appPreferenceChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Features Section -->
+    <div class="chart-card full-width">
+        <div class="chart-header">
+            <span class="chart-title">Желаемые функции в приложении (Топ запросов)</span>
+        </div>
+        <div class="features-list" id="featuresContainer">
+            <!-- Features will be injected here via JS -->
+        </div>
+    </div>
+</div>
+
+<script>
+    // Data Simulation based on 200 respondents
+    const data = {
+        demographics: {
+            gender: { male: 84, female: 116 }, // 42% / 58%
+            age: { under18: 30, range18_21: 85, range22_30: 65, over30: 20 }
+        },
+        learning: {
+            likeNew: { yes: 175, no: 25 },
+            likeGame: { yes: 170, no: 30 }
+        },
+        relevance: {
+            relevant: 120,
+            somewhat: 60,
+            somewhatNot: 15,
+            not: 5
+        },
+        versification: {
+            yes: 45,
+            no: 20,
+            ratherYes: 50,
+            ratherNo: 25,
+            yesIfInteresting: 60
+        },
+        appUsage: {
+            yes: 60,
+            no: 10,
+            ratherYes: 50,
+            ratherNo: 20,
+            yesIfInteresting: 60
+        },
+        features: [
+            { name: "Визуализация пути (прогресс)", count: 165 },
+            { name: "Награды за пройденные уроки", count: 158 },
+            { name: "Интересный персонаж", count: 142 },
+            { name: "Челленджи с друзьями", count: 130 },
+            { name: "Публикация творчества", count: 115 },
+            { name: "Сохранение результатов", count: 98 },
+            { name: "Интересный профиль", count: 85 },
+            { name: "Уведомления-напоминания", count: 72 }
+        ]
+    };
+
+    // Chart Configurations
+    const commonOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    usePointStyle: true,
+                    padding: 20,
+                    font: { family: 'Inter', size: 12 }
+                }
+            }
+        }
+    };
+
+    const barOptions = {
+        ...commonOptions,
+        scales: {
+            y: { beginAtZero: true, grid: { color: '#f3f4f6' } },
+            x: { grid: { display: false } }
+        }
+    };
+
+    // 1. Demographics Chart (Mixed)
+    new Chart(document.getElementById('demographicsChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Девушки', 'Парни'],
+            datasets: [{
+                data: [data.demographics.gender.female, data.demographics.gender.male],
+                backgroundColor: ['#ec4899', '#6366f1'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            ...commonOptions,
+            cutout: '60%',
+            plugins: {
+                ...commonOptions.plugins,
+                title: {
+                    display: true,
+                    text: 'Гендерное распределение',
+                    font: { size: 14, weight: 'bold' },
+                    padding: { bottom: 20 }
+                }
+            }
+        }
+    });
+
+    // 2. Learning Attitude (Bar)
+    new Chart(document.getElementById('learningAttitudeChart'), {
+        type: 'bar',
+        data: {
+            labels: ['Нравится учиться новому', 'Нравится в игровой форме'],
+            datasets: [{
+                label: 'Ответили "Да"',
+                data: [data.learning.likeNew.yes, data.learning.likeGame.yes],
+                backgroundColor: ['#10b981', '#8b5cf6'],
+                borderRadius: 8,
+                barThickness: 60
+            }]
+        },
+        options: {
+            ...barOptions,
+            plugins: {
+                legend: { display: false },
+                title: {
+                    display: true,
+                    text: 'Интерес к обучению и геймификации',
+                    font: { size: 14, weight: 'bold' },
+                    padding: { bottom: 20 }
+                }
+            }
+        }
+    });
+
+    // 3. Relevance (Pie)
+    new Chart(document.getElementById('relevanceChart'), {
+        type: 'pie',
+        data: {
+            labels: ['Актуальна', 'Скорее актуальна', 'Скорее не актуальна', 'Не актуальна'],
+            datasets: [{
+                data: [data.relevance.relevant, data.relevance.somewhat, data.relevance.somewhatNot, data.relevance.not],
+                backgroundColor: ['#3b82f6', '#60a5fa', '#93c5fd', '#dbeafe'],
+                borderWidth: 2,
+                borderColor: '#ffffff'
+            }]
+        },
+        options: {
+            ...commonOptions,
+            plugins: {
+                ...commonOptions.plugins,
+                title: {
+                    display: true,
+                    text: 'Насколько актуальна тема?',
+                    font: { size: 14, weight: 'bold' },
+                    padding: { bottom: 20 }
+                }
+            }
+        }
+    });
+
+    // 4. Versification (Horizontal Bar)
+    new Chart(document.getElementById('versificationChart'), {
+        type: 'bar',
+        indexAxis: 'y',
+        data: {
+            labels: ['Да', 'Скорее да', 'Да, если интересно', 'Скорее нет', 'Нет'],
+            datasets: [{
+                label: 'Количество голосов',
+                data: [
+                    data.versification.yes,
+                    data.versification.ratherYes,
+                    data.versification.yesIfInteresting,
+                    data.versification.ratherNo,
+                    data.versification.no
+                ],
+                backgroundColor: '#f59e0b',
+                borderRadius: 6
+            }]
+        },
+        options: {
+            ...barOptions,
+            plugins: {
+                legend: { display: false },
+                title: {
+                    display: true,
+                    text: 'Интерес к основам стихосложения',
+                    font: { size: 14, weight: 'bold' },
+                    padding: { bottom: 20 }
+                }
+            }
+        }
+    });
+
+    // 5. App Preference (Stacked Bar)
+    new Chart(document.getElementById('appPreferenceChart'), {
+        type: 'bar',
+        data: {
+            labels: ['Предпочтение формату'],
+            datasets: [
+                {
+                    label: 'Да / Скорее да',
+                    data: [data.appUsage.yes + data.appUsage.ratherYes],
+                    backgroundColor: '#10b981',
+                    stack: 'Stack 0'
+                },
+                {
+                    label: 'Да, если интересно',
+                    data: [data.appUsage.yesIfInteresting],
+                    backgroundColor: '#3b82f6',
+                    stack: 'Stack 0'
+                },
+                {
+                    label: 'Нет / Скорее нет',
+                    data: [data.appUsage.no + data.appUsage.ratherNo],
+                    backgroundColor: '#ef4444',
+                    stack: 'Stack 0'
+                }
+            ]
+        },
+        options: {
+            ...barOptions,
+            scales: {
+                x: { stacked: true, display: false },
+                y: { stacked: true, beginAtZero: true, grid: { color: '#f3f4f6' } }
+            },
+            plugins: {
+                legend: { position: 'top' },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.raw + ' чел.';
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // 6. Features List Generation
+    const featuresContainer = document.getElementById('featuresContainer');
+    const maxFeatureCount = Math.max(...data.features.map(f => f.count));
+
+    data.features.forEach(feature => {
+        const percentage = (feature.count / 200) * 100;
+        const width = (feature.count / maxFeatureCount) * 100;
+        
+        const html = `
+            <div class="feature-item">
+                <span class="feature-name">
+                    ${feature.name}
+                    <span class="feature-count">${feature.count} голосов</span>
+                </span>
+                <div class="progress-bg">
+                    <div class="progress-fill" style="width: 0%" data-width="${width}%"></div>
+                </div>
+                <div style="font-size: 0.75rem; color: #6b7280; margin-top: 4px; text-align: right;">${percentage.toFixed(0)}%</div>
+            </div>
+        `;
+        featuresContainer.innerHTML += html;
+    });
+
+    // Animate Feature Bars on Load
+    setTimeout(() => {
+        document.querySelectorAll('.progress-fill').forEach(bar => {
+            bar.style.width = bar.getAttribute('data-width');
+        });
+    }, 300);
+
+</script>
+
+</body>
+</html>
+
